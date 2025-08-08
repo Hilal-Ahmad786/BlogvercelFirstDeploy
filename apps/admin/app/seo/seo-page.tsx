@@ -806,7 +806,7 @@ Sitemap: https://yourblog.com/sitemap.xml`}
                 <Label htmlFor="site-title">Site Title</Label>
                 <Input
                   id="site-title"
-                  defaultValue="Claudia Blog - Modern Blog Admin System"
+                  defaultValue="100lesme Blog - Modern Blog Admin System"
                   className="mt-1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">

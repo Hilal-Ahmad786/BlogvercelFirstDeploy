@@ -44,7 +44,7 @@ export function AdminSidebar() {
       <div className="flex min-h-0 flex-1 flex-col bg-card border-r border-border">
         {/* Logo */}
         <div className="flex h-16 flex-shrink-0 items-center px-6 border-b border-border">
-          <h1 className="text-xl font-bold gradient-text">Claudia Admin</h1>
+          <h1 className="text-xl font-bold gradient-text">100lesme Admin</h1>
         </div>
 
         {/* Navigation */}

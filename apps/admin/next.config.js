@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@claudia-blog/ui', '@claudia-blog/database'],
+  transpilePackages: ['@100lesme-blog/ui', '@100lesme-blog/database'],
   images: {
     domains: ['localhost'],
     remotePatterns: [

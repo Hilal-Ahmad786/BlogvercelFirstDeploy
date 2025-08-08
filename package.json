@@ -1,6 +1,6 @@
 
 {
-    "name": "claudia-blog",
+    "name": "100lesme-blog",
     "version": "1.0.0",
     "description": "Modern blog platform with admin-ready architecture",
     "private": true,
@@ -9,10 +9,10 @@
       "packages/*"
     ],
     "scripts": {
-      "dev:web": "pnpm --filter @claudia-blog/web dev",
-      "dev:admin": "pnpm --filter @claudia-blog/admin dev",
-      "build:web": "pnpm --filter @claudia-blog/web build",
-      "build:admin": "pnpm --filter @claudia-blog/admin build",
+      "dev:web": "pnpm --filter @100lesme-blog/web dev",
+      "dev:admin": "pnpm --filter @100lesme-blog/admin dev",
+      "build:web": "pnpm --filter @100lesme-blog/web build",
+      "build:admin": "pnpm --filter @100lesme-blog/admin build",
       "dev": "turbo run dev",
       "build": "turbo run build",
       "start": "turbo run start",

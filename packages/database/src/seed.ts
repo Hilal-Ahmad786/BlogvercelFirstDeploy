@@ -83,10 +83,10 @@ async function seed() {
     // Create sample posts
     const post1 = await db.insert(posts).values({
       id: 'post-1',
-      title: 'Welcome to Claudia Blog',
-      slug: 'welcome-to-claudia-blog',
+      title: 'Welcome to 100lesme Blog',
+      slug: 'welcome-to-100lesme-blog',
       excerpt: 'This is the first post on our new blog platform built with Next.js and modern web technologies.',
-      content: `# Welcome to Claudia Blog
+      content: `# Welcome to 100lesme Blog
 
 This is our first blog post! This platform is built with:
 
@@ -110,7 +110,7 @@ Stay tuned for more updates!`,
       featured: true,
       viewCount: 42,
       readingTime: 2,
-      seoTitle: 'Welcome to Claudia Blog - Modern Blog Platform',
+      seoTitle: 'Welcome to 100lesme Blog - Modern Blog Platform',
       seoDescription: 'Introducing our new blog platform built with Next.js and modern web technologies.',
       authorId: adminUser[0].id,
       publishedAt: new Date().toISOString(),

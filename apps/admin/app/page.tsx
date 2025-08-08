@@ -81,7 +81,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Welcome to Claudia Blog</p>
+                  <p className="font-medium">Welcome to 100lesme Blog</p>
                   <p className="text-sm text-muted-foreground">Published 2 hours ago</p>
                 </div>
                 <Badge className="bg-green-100 text-green-800">Published</Badge>

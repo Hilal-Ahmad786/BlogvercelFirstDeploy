@@ -1,5 +1,5 @@
 
-# 🎯 Claudia Blog Admin
+# 🎯 100lesme Blog Admin
 
 A modern, full-featured blog administration system built with Next.js 14, TypeScript, and Tailwind CSS.
 
@@ -31,9 +31,9 @@ A modern, full-featured blog administration system built with Next.js 14, TypeSc
 - **Smooth Animations**: Polished user experience
 
 ## 🚀 Demo Accounts
-- **Admin**: admin@claudia-blog.com / admin123
-- **Editor**: editor@claudia-blog.com / editor123
-- **Author**: author@claudia-blog.com / author123
+- **Admin**: admin@100lesme-blog.com / admin123
+- **Editor**: editor@100lesme-blog.com / editor123
+- **Author**: author@100lesme-blog.com / author123
 
 ## 🛠️ Tech Stack
 - **Framework**: Next.js 14 with App Router
@@ -43,7 +43,7 @@ A modern, full-featured blog administration system built with Next.js 14, TypeSc
 - **Package Manager**: pnpm
 
 ## 📦 Project Structure
-claudia-blog/
+100lesme-blog/
 ├── apps/
 │   ├── admin/          # Admin panel (main application)
 │   └── web/            # Public blog (future)
@@ -63,7 +63,7 @@ pnpm dev
 
 # Visit http://localhost:3001
 cat > README.md << 'EOF'
-# Claudia Blog Admin
+# 100lesme Blog Admin
 
 A modern blog administration system built with Next.js 14, TypeScript, and Tailwind CSS.
 
@@ -84,9 +84,9 @@ A modern blog administration system built with Next.js 14, TypeScript, and Tailw
 
 ## Demo Accounts
 
-- Admin: admin@claudia-blog.com / admin123
-- Editor: editor@claudia-blog.com / editor123  
-- Author: author@claudia-blog.com / author123
+- Admin: admin@100lesme-blog.com / admin123
+- Editor: editor@100lesme-blog.com / editor123  
+- Author: author@100lesme-blog.com / author123
 
 ## Tech Stack
 

@@ -12,21 +12,21 @@ const mockUsers: User[] = [
   {
     id: '1',
     name: 'Admin User',
-    email: 'admin@claudia-blog.com',
+    email: 'admin@100lesme-blog.com',
     role: 'admin',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100'
   },
   {
     id: '2',
     name: 'Editor User',
-    email: 'editor@claudia-blog.com',
+    email: 'editor@100lesme-blog.com',
     role: 'editor',
     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100'
   },
   {
     id: '3',
     name: 'Author User',
-    email: 'author@claudia-blog.com',
+    email: 'author@100lesme-blog.com',
     role: 'author',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100'
   }
@@ -34,9 +34,9 @@ const mockUsers: User[] = [
 
 export function validateCredentials(email: string, password: string): User | null {
   const validCredentials = [
-    { email: 'admin@claudia-blog.com', password: 'admin123' },
-    { email: 'editor@claudia-blog.com', password: 'editor123' },
-    { email: 'author@claudia-blog.com', password: 'author123' }
+    { email: 'admin@100lesme-blog.com', password: 'admin123' },
+    { email: 'editor@100lesme-blog.com', password: 'editor123' },
+    { email: 'author@100lesme-blog.com', password: 'author123' }
   ]
 
   const isValid = validCredentials.some(cred => 

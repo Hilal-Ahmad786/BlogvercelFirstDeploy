@@ -84,10 +84,10 @@ export default function SettingsPage() {
       setTimeout(() => {
         setSettings({
           general: {
-            siteName: 'Claudia Blog',
+            siteName: '100lesme Blog',
             siteDescription: 'A modern blog admin system built with Next.js',
-            siteUrl: 'https://claudia-blog.com',
-            adminEmail: 'admin@claudia-blog.com',
+            siteUrl: 'https://100lesme-blog.com',
+            adminEmail: 'admin@100lesme-blog.com',
             timezone: 'UTC',
             language: 'en'
           },

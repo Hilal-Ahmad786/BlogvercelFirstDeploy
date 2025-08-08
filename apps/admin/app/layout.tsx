@@ -8,8 +8,8 @@ import { AdminLayout } from '@/components/admin-layout'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Claudia Blog Admin',
-  description: 'Admin panel for Claudia Blog',
+  title: '100lesme Blog Admin',
+  description: 'Admin panel for 100lesme Blog',
 }
 
 export default function RootLayout({
