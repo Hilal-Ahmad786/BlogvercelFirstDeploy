@@ -1,0 +1,51 @@
+
+{
+    "name": "claudia-blog",
+    "version": "1.0.0",
+    "description": "Modern blog platform with admin-ready architecture",
+    "private": true,
+    "workspaces": [
+      "apps/*",
+      "packages/*"
+    ],
+    "scripts": {
+      "dev:web": "pnpm --filter @claudia-blog/web dev",
+      "dev:admin": "pnpm --filter @claudia-blog/admin dev",
+      "build:web": "pnpm --filter @claudia-blog/web build",
+      "build:admin": "pnpm --filter @claudia-blog/admin build",
+      "dev": "turbo run dev",
+      "build": "turbo run build",
+      "start": "turbo run start",
+      "lint": "turbo run lint",
+      "test": "turbo run test",
+      "test:watch": "turbo run test:watch",
+      "type-check": "turbo run type-check",
+      "clean": "turbo run clean",
+      "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+      "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+      "prepare": "husky install"
+    },
+    "devDependencies": {
+      "@types/node": "^20.10.5",
+      "eslint": "^8.56.0",
+      "husky": "^8.0.3",
+      "lint-staged": "^15.2.0",
+      "prettier": "^3.1.1",
+      "turbo": "^1.11.2",
+      "typescript": "^5.3.3"
+    },
+    "lint-staged": {
+      "*.{ts,tsx,js,jsx}": [
+        "eslint --fix",
+        "prettier --write"
+      ],
+      "*.{json,md}": [
+        "prettier --write"
+      ]
+    },
+    "engines": {
+      "node": ">=18.17.0",
+      "pnpm": ">=8.0.0"
+    },
+    "packageManager": "pnpm@8.15.1"
+  }

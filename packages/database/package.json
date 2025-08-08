@@ -1,0 +1,9 @@
+{
+  "name": "@claudia-blog/database",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "@types/bcrypt": "^5.0.0"
+  }
+}
