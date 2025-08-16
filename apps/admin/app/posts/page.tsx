@@ -1,1 +1,5 @@
-export { default } from './posts-page'
+import PostsPage from './posts-page'
+
+export default function Posts() {
+  return <PostsPage />
+}

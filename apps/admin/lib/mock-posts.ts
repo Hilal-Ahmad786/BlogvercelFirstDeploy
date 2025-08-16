@@ -1,130 +1,184 @@
-interface Post {
+// apps/admin/lib/mock-posts.ts
+export interface BlogPost {
   id: string
   title: string
   slug: string
   excerpt: string
   content: string
-  status: 'draft' | 'published' | 'archived'
+  status: 'draft' | 'published'
   featured: boolean
-  viewCount: number
-  authorId: string
-  authorName: string
   publishedAt: string | null
   createdAt: string
   updatedAt: string
-  seoTitle: string
-  seoDescription: string
+  readingTime: number
+  author: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  categoryId: string
+  categoryName: string
   tags: string[]
+  seoTitle?: string
+  seoDescription?: string
+  views?: number
 }
 
-let mockPosts: Post[] = [
+// Storage keys
+const POSTS_STORAGE_KEY = 'blog_posts'
+
+// Storage helpers
+function isClient() {
+  return typeof window !== 'undefined'
+}
+
+function saveToStorage(key: string, data: any) {
+  if (isClient()) {
+    try {
+      localStorage.setItem(key, JSON.stringify(data))
+    } catch (error) {
+      console.warn('Failed to save to localStorage:', error)
+    }
+  }
+}
+
+function loadFromStorage(key: string, defaultValue: any) {
+  if (isClient()) {
+    try {
+      const stored = localStorage.getItem(key)
+      return stored ? JSON.parse(stored) : defaultValue
+    } catch (error) {
+      console.warn('Failed to load from localStorage:', error)
+      return defaultValue
+    }
+  }
+  return defaultValue
+}
+
+// Default posts
+const defaultPosts: BlogPost[] = [
   {
-    id: '1',
-    title: 'Welcome to Your Blog Admin',
-    slug: 'welcome-to-blog-admin',
-    excerpt: 'This is your first blog post created through the admin panel. You can edit, delete, or create new posts.',
-    content: `# Welcome to Your Blog Admin
-
-This is your first blog post! You can now:
-
-- ✅ Create new posts
-- ✅ Edit existing posts  
-- ✅ Manage drafts and published content
-- ✅ Add tags and SEO optimization
-- ✅ Feature important posts
-
-Start writing amazing content for your blog!
-
-## Getting Started
-
-1. Click "New Post" to create content
-2. Use the editor to write your posts
-3. Set SEO titles and descriptions
-4. Publish when ready
-
-Happy blogging! 🚀`,
-    status: 'published',
+    id: "1",
+    title: "Welcome to Your Blog Admin",
+    slug: "welcome-to-blog-admin",
+    excerpt: "This is your first blog post created through the admin panel.",
+    content: "# Welcome to Your Blog Admin\n\nThis is your first blog post! You can now create, edit, and manage your content.\n\n## Getting Started\n\n1. Click \"New Post\" to create content\n2. Use the editor to write your posts\n3. Publish when ready\n\nHappy blogging! 🚀",
+    status: "published",
     featured: true,
-    viewCount: 42,
-    authorId: 'admin-1',
-    authorName: 'Admin User',
     publishedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    seoTitle: 'Welcome to Your Blog Admin - Get Started',
-    seoDescription: 'Learn how to use your new blog admin panel to create and manage content.',
-    tags: ['welcome', 'admin', 'getting-started']
-  },
-  {
-    id: '2',
-    title: 'How to Write Great Blog Posts',
-    slug: 'how-to-write-great-blog-posts',
-    excerpt: 'Learn the secrets of writing engaging blog posts that your readers will love.',
-    content: `# How to Write Great Blog Posts
-
-Writing great blog posts is an art and a science...
-
-## Key Tips
-
-1. **Start with a compelling headline**
-2. **Write for your audience**
-3. **Use clear structure**
-4. **Add value**
-5. **Include a call-to-action**
-
-More content coming soon!`,
-    status: 'draft',
-    featured: false,
-    viewCount: 15,
-    authorId: 'admin-1',
-    authorName: 'Admin User',
-    publishedAt: null,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-    seoTitle: 'How to Write Great Blog Posts - Writing Guide',
-    seoDescription: 'Master the art of blog writing with these proven tips and strategies.',
-    tags: ['writing', 'blogging', 'tips']
+    readingTime: 2,
+    author: {
+      id: "admin-1",
+      name: "Admin User"
+    },
+    categoryId: "1",
+    categoryName: "General",
+    tags: ["welcome", "admin", "getting-started"],
+    seoTitle: "Welcome to Your Blog Admin",
+    seoDescription: "Learn how to use your new blog admin panel.",
+    views: 42
   }
 ]
 
-export function getAllPosts() {
-  return mockPosts.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+let posts: BlogPost[] = []
+
+// Initialize posts
+function initializePosts() {
+  posts = loadFromStorage(POSTS_STORAGE_KEY, defaultPosts)
 }
 
-export function getPostById(id: string) {
-  return mockPosts.find(post => post.id === id)
+// Auto-initialize
+if (isClient()) {
+  initializePosts()
 }
 
-export function createPost(postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'viewCount' | 'authorId' | 'authorName'>) {
-  const newPost: Post = {
-    ...postData,
+export function getAllPosts(): BlogPost[] {
+  if (posts.length === 0) {
+    initializePosts()
+  }
+  return [...posts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
+export function getPostById(id: string): BlogPost | null {
+  const allPosts = getAllPosts()
+  return allPosts.find(post => post.id === id) || null
+}
+
+export function createPost(postData: {
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  status: 'draft' | 'published'
+  featured: boolean
+  categoryId: string
+  categoryName: string
+  publishedAt?: string | null
+  seoTitle?: string
+  seoDescription?: string
+  tags: string[]
+}): BlogPost {
+  const allPosts = getAllPosts()
+  
+  const newPost: BlogPost = {
     id: Date.now().toString(),
-    viewCount: 0,
-    authorId: 'admin-1',
-    authorName: 'Admin User',
+    title: postData.title,
+    slug: postData.slug,
+    excerpt: postData.excerpt,
+    content: postData.content,
+    status: postData.status,
+    featured: postData.featured,
+    publishedAt: postData.status === 'published' ? (postData.publishedAt || new Date().toISOString()) : null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    readingTime: Math.ceil(postData.content.split(' ').length / 200) || 1,
+    author: {
+      id: 'admin-1',
+      name: 'Admin User'
+    },
+    categoryId: postData.categoryId,
+    categoryName: postData.categoryName,
+    tags: postData.tags,
+    seoTitle: postData.seoTitle,
+    seoDescription: postData.seoDescription,
+    views: 0
   }
-  mockPosts.push(newPost)
+
+  allPosts.push(newPost)
+  posts = allPosts
+  saveToStorage(POSTS_STORAGE_KEY, allPosts)
+  
   return newPost
 }
 
-export function updatePost(id: string, updates: Partial<Post>) {
-  const index = mockPosts.findIndex(post => post.id === id)
-  if (index === -1) return null
+export function updatePost(id: string, updates: Partial<BlogPost>): BlogPost | null {
+  const allPosts = getAllPosts()
+  const postIndex = allPosts.findIndex(p => p.id === id)
   
-  mockPosts[index] = {
-    ...mockPosts[index],
+  if (postIndex === -1) return null
+  
+  allPosts[postIndex] = {
+    ...allPosts[postIndex],
     ...updates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
-  return mockPosts[index]
+  
+  posts = allPosts
+  saveToStorage(POSTS_STORAGE_KEY, allPosts)
+  
+  return allPosts[postIndex]
 }
 
-export function deletePost(id: string) {
-  const index = mockPosts.findIndex(post => post.id === id)
-  if (index === -1) return false
+export function deletePost(id: string): boolean {
+  const allPosts = getAllPosts()
+  const filteredPosts = allPosts.filter(p => p.id !== id)
   
-  mockPosts.splice(index, 1)
+  if (filteredPosts.length === allPosts.length) return false
+  
+  posts = filteredPosts
+  saveToStorage(POSTS_STORAGE_KEY, filteredPosts)
+  
   return true
 }

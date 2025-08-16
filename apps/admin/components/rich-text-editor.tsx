@@ -1,308 +1,269 @@
+// apps/admin/components/rich-text-editor.tsx - IMPROVED VERSION
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { 
   Bold, 
   Italic, 
-  Underline,
-  Strikethrough,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  List,
-  ListOrdered,
+  Underline, 
+  List, 
+  ListOrdered, 
+  Link2, 
+  Image as ImageIcon,
   Quote,
   Code,
-  Link,
-  Image,
   Heading1,
   Heading2,
-  Heading3,
-  Undo,
-  Redo,
-  Type,
-  Eye,
-  Edit3,
-  Save
+  Heading3
 } from 'lucide-react'
 
 interface RichTextEditorProps {
-  content: string
-  onChange: (content: string) => void
+  value: string
+  onChange: (value: string) => void
   placeholder?: string
   className?: string
 }
 
-type CommandType = string | (() => void)
-
-interface ToolbarButton {
-  icon: any
-  command?: CommandType
-  title: string
-  type?: string
-}
-
-export function RichTextEditor({ content, onChange, placeholder = "Start writing...", className = "" }: RichTextEditorProps) {
-  const [isPreview, setIsPreview] = useState(false)
-  const [showLinkDialog, setShowLinkDialog] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const [linkText, setLinkText] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
+export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
-  const execCommand = useCallback((command: string, value?: string) => {
+  useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value
+    }
+  }, [value])
+
+  const executeCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value)
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML)
     }
-  }, [onChange])
+    editorRef.current?.focus()
+  }
 
-  const formatBlock = useCallback((tag: string) => {
-    execCommand('formatBlock', tag)
-  }, [execCommand])
-
-  const insertImage = useCallback(() => {
-    const url = prompt('Enter image URL:')
-    if (url) {
-      execCommand('insertImage', url)
-    }
-  }, [execCommand])
-
-  const insertLink = useCallback(() => {
-    const selection = window.getSelection()
-    if (selection && selection.toString()) {
-      setLinkText(selection.toString())
-    }
-    setShowLinkDialog(true)
-  }, [])
-
-  const handleLinkInsert = useCallback(() => {
-    if (linkText && linkUrl) {
-      const linkHtml = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${linkText}</a>`
-      execCommand('insertHTML', linkHtml)
-    }
-    setShowLinkDialog(false)
-    setLinkUrl('')
-    setLinkText('')
-  }, [linkText, linkUrl, execCommand])
-
-  const handleContentChange = useCallback(() => {
+  const handleInput = () => {
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML)
     }
-  }, [onChange])
+  }
 
-  const handleButtonClick = (command: CommandType | undefined) => {
-    if (!command) return
-    
-    if (typeof command === 'string') {
-      execCommand(command)
-    } else {
-      command()
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text/plain')
+    document.execCommand('insertText', false, text)
+    handleInput()
+  }
+
+  const insertLink = () => {
+    const url = prompt('Enter URL:')
+    if (url) {
+      executeCommand('createLink', url)
     }
   }
 
-  const toolbarButtons: ToolbarButton[] = [
-    { icon: Undo, command: 'undo', title: 'Undo (Ctrl+Z)' },
-    { icon: Redo, command: 'redo', title: 'Redo (Ctrl+Y)' },
-    { type: 'separator', icon: null, title: '' },
-    { icon: Heading1, command: () => formatBlock('h1'), title: 'Heading 1' },
-    { icon: Heading2, command: () => formatBlock('h2'), title: 'Heading 2' },
-    { icon: Heading3, command: () => formatBlock('h3'), title: 'Heading 3' },
-    { icon: Type, command: () => formatBlock('p'), title: 'Paragraph' },
-    { type: 'separator', icon: null, title: '' },
-    { icon: Bold, command: 'bold', title: 'Bold (Ctrl+B)' },
-    { icon: Italic, command: 'italic', title: 'Italic (Ctrl+I)' },
-    { icon: Underline, command: 'underline', title: 'Underline (Ctrl+U)' },
-    { icon: Strikethrough, command: 'strikeThrough', title: 'Strikethrough' },
-    { type: 'separator', icon: null, title: '' },
-    { icon: AlignLeft, command: () => execCommand('justifyLeft'), title: 'Align Left' },
-    { icon: AlignCenter, command: () => execCommand('justifyCenter'), title: 'Align Center' },
-    { icon: AlignRight, command: () => execCommand('justifyRight'), title: 'Align Right' },
-    { type: 'separator', icon: null, title: '' },
-    { icon: List, command: 'insertUnorderedList', title: 'Bullet List' },
-    { icon: ListOrdered, command: 'insertOrderedList', title: 'Numbered List' },
-    { icon: Quote, command: () => formatBlock('blockquote'), title: 'Quote' },
-    { icon: Code, command: () => formatBlock('pre'), title: 'Code Block' },
-    { type: 'separator', icon: null, title: '' },
-    { icon: Link, command: insertLink, title: 'Insert Link (Ctrl+K)' },
-    { icon: Image, command: insertImage, title: 'Insert Image' },
-  ]
+  const insertImage = () => {
+    const url = prompt('Enter image URL:')
+    if (url) {
+      executeCommand('insertImage', url)
+    }
+  }
+
+  const formatBlock = (tag: string) => {
+    executeCommand('formatBlock', tag)
+  }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <Card className="glass">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <CardTitle className="text-lg">Content Editor</CardTitle>
-              {isSaving && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Save className="h-4 w-4 animate-pulse" />
-                  <span>Auto-saving...</span>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={!isPreview ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setIsPreview(false)}
-              >
-                <Edit3 className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-              <Button
-                variant={isPreview ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setIsPreview(true)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Preview
-              </Button>
-            </div>
-          </div>
-
-          {!isPreview && (
-            <div className="flex flex-wrap gap-1 pt-3 border-t border-border">
-              {toolbarButtons.map((button, index) => {
-                if (button.type === 'separator') {
-                  return <div key={index} className="w-px h-6 bg-border mx-1" />
-                }
-
-                const Icon = button.icon
-                if (!Icon) return null
-
-                return (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-primary/10"
-                    onClick={() => handleButtonClick(button.command)}
-                    title={button.title}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                )
-              })}
-            </div>
-          )}
-        </CardHeader>
-
-        <CardContent>
-          {isPreview ? (
-            <div className="min-h-96 p-4 border border-border rounded-lg bg-background">
-              <div 
-                className="prose prose-lg max-w-none dark:prose-invert prose-headings:gradient-text prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
-                dangerouslySetInnerHTML={{ __html: content }}
-              />
-            </div>
-          ) : (
-            <div
-              ref={editorRef}
-              contentEditable
-              className="min-h-96 p-4 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent prose prose-lg max-w-none dark:prose-invert"
-              onInput={handleContentChange}
-              dangerouslySetInnerHTML={{ __html: content }}
-              data-placeholder={placeholder}
-              style={{
-                minHeight: '24rem',
-              }}
-            />
-          )}
-
-          {/* Link Dialog */}
-          {showLinkDialog && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md glass">
-                <CardHeader>
-                  <CardTitle>Insert Link</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Link Text</label>
-                    <Input
-                      value={linkText}
-                      onChange={(e) => setLinkText(e.target.value)}
-                      placeholder="Enter link text..."
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">URL</label>
-                    <Input
-                      value={linkUrl}
-                      onChange={(e) => setLinkUrl(e.target.value)}
-                      placeholder="https://example.com"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setShowLinkDialog(false)
-                        setLinkUrl('')
-                        setLinkText('')
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleLinkInsert}>
-                      Insert Link
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-// Word Count Component
-export function WordCount({ content }: { content: string }) {
-  const getWordCount = (html: string) => {
-    const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-    return text ? text.split(' ').length : 0
-  }
-
-  const getCharCount = (html: string) => {
-    return html.replace(/<[^>]*>/g, '').length
-  }
-
-  const getReadingTime = (html: string) => {
-    const wordCount = getWordCount(html)
-    const wordsPerMinute = 200
-    return Math.ceil(wordCount / wordsPerMinute)
-  }
-
-  const readingTime = getReadingTime(content)
-
-  return (
-    <Card className="glass">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <Type className="h-4 w-4" />
-              {getWordCount(content)} words
-            </span>
-            <span>{getCharCount(content)} characters</span>
-            <span className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              {readingTime} min read
-            </span>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Press Ctrl+B for bold, Ctrl+I for italic, Ctrl+K for links
-          </div>
+    <div className={`border rounded-lg overflow-hidden ${className || ''}`}>
+      {/* Toolbar - IMPROVED WITH LARGER ICONS */}
+      <div className="border-b bg-gray-50 p-3 flex flex-wrap gap-2">
+        {/* Headings Group */}
+        <div className="flex gap-1 border-r pr-3 mr-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => formatBlock('h1')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Heading 1"
+          >
+            <Heading1 className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => formatBlock('h2')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Heading 2"
+          >
+            <Heading2 className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => formatBlock('h3')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Heading 3"
+          >
+            <Heading3 className="h-5 w-5" />
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Text Formatting Group */}
+        <div className="flex gap-1 border-r pr-3 mr-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('bold')}
+            className="h-10 w-10 p-0 font-bold hover:bg-gray-200"
+            title="Bold"
+          >
+            <Bold className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('italic')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Italic"
+          >
+            <Italic className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('underline')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Underline"
+          >
+            <Underline className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Lists and Quote Group */}
+        <div className="flex gap-1 border-r pr-3 mr-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('insertUnorderedList')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Bullet List"
+          >
+            <List className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('insertOrderedList')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Numbered List"
+          >
+            <ListOrdered className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => formatBlock('blockquote')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Quote"
+          >
+            <Quote className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Media and Code Group */}
+        <div className="flex gap-1 border-r pr-3 mr-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={insertLink}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Insert Link"
+          >
+            <Link2 className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={insertImage}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Insert Image"
+          >
+            <ImageIcon className="h-5 w-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('formatBlock', 'pre')}
+            className="h-10 w-10 p-0 hover:bg-gray-200"
+            title="Code Block"
+          >
+            <Code className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Actions Group */}
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('undo')}
+            className="h-10 px-4 text-sm hover:bg-gray-200"
+            title="Undo"
+          >
+            Undo
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => executeCommand('redo')}
+            className="h-10 px-4 text-sm hover:bg-gray-200"
+            title="Redo"
+          >
+            Redo
+          </Button>
+        </div>
+      </div>
+
+      {/* Editor */}
+      <div className="relative">
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onPaste={handlePaste}
+          onFocus={() => setIsEditing(true)}
+          onBlur={() => setIsEditing(false)}
+          className="min-h-[400px] p-4 focus:outline-none prose prose-sm max-w-none"
+          style={{
+            direction: 'ltr',
+            textAlign: 'left',
+            unicodeBidi: 'normal'
+          }}
+          data-placeholder={placeholder}
+        />
+
+        {!value && !isEditing && (
+          <div className="absolute top-4 left-4 text-gray-400 pointer-events-none text-base">
+            {placeholder || 'Start writing your content...'}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

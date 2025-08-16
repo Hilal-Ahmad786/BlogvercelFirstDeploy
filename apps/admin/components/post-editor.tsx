@@ -1,552 +1,406 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { RichTextEditor } from '@/components/rich-text-editor'
+import { AdvancedRichTextEditor } from '@/components/advanced-rich-text-editor'
 import { 
-  Save, 
-  Eye, 
-  ArrowLeft, 
-  Settings,
-  Star,
-  Calendar,
-  Tag,
-  Image,
-  Type,
-  Search,
-  Globe,
-  BarChart3
+  ArrowLeftIcon, 
+  SaveIcon, 
+  SendIcon,
+  SettingsIcon,
+  TagIcon,
+  Edit3Icon
 } from 'lucide-react'
 
-interface Post {
-  id?: string
+interface PostData {
   title: string
   slug: string
   excerpt: string
   content: string
-  status: 'draft' | 'published' | 'archived'
+  status: 'draft' | 'published'
   featured: boolean
-  coverImage?: string
+  categoryId: string
   seoTitle: string
   seoDescription: string
   tags: string[]
-  publishedAt?: string
-  readingTime?: number
 }
 
-interface PostEditorProps {
-  postId?: string
+interface Category {
+  id: string
+  name: string
+  slug: string
+  color: string
 }
 
-export function PostEditor({ postId }: PostEditorProps) {
+export default function PostEditor() {
   const router = useRouter()
-  const [post, setPost] = useState<Post>({
+  const [saving, setSaving] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [editorMode, setEditorMode] = useState<'rich' | 'markdown'>('rich')
+  
+  const [post, setPost] = useState<PostData>({
     title: '',
     slug: '',
     excerpt: '',
     content: '',
     status: 'draft',
     featured: false,
+    categoryId: '',
     seoTitle: '',
     seoDescription: '',
-    tags: [],
+    tags: []
   })
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(false)
-  const [newTag, setNewTag] = useState('')
-  const [showSEO, setShowSEO] = useState(false)
 
-  const isEditing = !!postId
-
+  // Fetch categories on component mount
   useEffect(() => {
-    if (postId) {
-      fetchPost()
-    }
-  }, [postId])
+    fetchCategories()
+  }, [])
 
-  // Auto-generate slug from title
-  useEffect(() => {
-    if (!isEditing && post.title) {
-      const slug = post.title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim()
-      setPost(prev => ({ ...prev, slug }))
-    }
-  }, [post.title, isEditing])
-
-  // Auto-generate SEO title from title
-  useEffect(() => {
-    if (post.title && !post.seoTitle) {
-      setPost(prev => ({ ...prev, seoTitle: post.title }))
-    }
-  }, [post.title, post.seoTitle])
-
-  // Auto-generate excerpt from content
-  useEffect(() => {
-    if (post.content && !post.excerpt) {
-      const plainText = post.content.replace(/<[^>]*>/g, '').substring(0, 160)
-      setPost(prev => ({ ...prev, excerpt: plainText + '...' }))
-    }
-  }, [post.content, post.excerpt])
-
-  const fetchPost = async () => {
+  const fetchCategories = async () => {
     try {
-      setLoading(true)
-      const response = await fetch(`/api/posts/${postId}`)
+      const response = await fetch('/api/categories')
       if (response.ok) {
         const data = await response.json()
-        setPost(data.post)
-      }
-    } catch (error) {
-      console.error('Failed to fetch post:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const savePost = async (status?: string) => {
-    try {
-      setSaving(true)
-      const method = isEditing ? 'PUT' : 'POST'
-      const url = isEditing ? `/api/posts/${postId}` : '/api/posts'
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...post,
-          status: status || post.status,
-          publishedAt: status === 'published' ? new Date().toISOString() : post.publishedAt,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (!isEditing) {
-          router.push(`/posts/${data.post.id}/edit`)
-        } else {
-          setPost(data.post)
+        setCategories(data.categories || [])
+        if (data.categories && data.categories.length > 0 && !post.categoryId) {
+          setPost(prev => ({ ...prev, categoryId: data.categories[0].id }))
         }
       }
     } catch (error) {
-      console.error('Failed to save post:', error)
+      console.error('Error fetching categories:', error)
+    }
+  }
+
+  // Auto-generate slug from title
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+  }
+
+  const handleTitleChange = (title: string) => {
+    setPost(prev => ({
+      ...prev,
+      title,
+      slug: generateSlug(title),
+      seoTitle: title
+    }))
+  }
+
+  // ✅ THIS IS THE MISSING FUNCTION
+  const handleContentChange = (content: string) => {
+    console.log('Content changed:', content) // Debug log
+    setPost(prev => ({ ...prev, content }))
+  }
+
+  const handleSave = async (status: 'draft' | 'published') => {
+    if (!post.title.trim()) {
+      alert('Please enter a title')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...post,
+          status,
+          seoTitle: post.seoTitle || post.title,
+          seoDescription: post.seoDescription || post.excerpt
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save post')
+      }
+
+      const data = await response.json()
+      
+      alert(status === 'published' ? 'Post published successfully!' : 'Post saved as draft!')
+      router.push('/posts')
+      
+    } catch (error) {
+      console.error('Error saving post:', error)
+      alert('Failed to save post. Please try again.')
     } finally {
       setSaving(false)
     }
   }
 
-  const addTag = () => {
-    if (newTag && !post.tags.includes(newTag)) {
-      setPost(prev => ({ ...prev, tags: [...prev.tags, newTag] }))
-      setNewTag('')
-    }
-  }
-
-  const removeTag = (tagToRemove: string) => {
-    setPost(prev => ({ 
-      ...prev, 
-      tags: prev.tags.filter(tag => tag !== tagToRemove) 
-    }))
-  }
-
-  const calculateReadingTime = (content: string) => {
-    const wordCount = content.replace(/<[^>]*>/g, '').split(' ').length
-    return Math.ceil(wordCount / 200) // 200 words per minute
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    )
-  }
+  const selectedCategory = categories.find(cat => cat.id === post.categoryId)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-card border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/posts')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/posts">
+            <Button variant="outline" size="sm">
+              <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back to Posts
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold">
-                {isEditing ? 'Edit Post' : 'New Post'}
-              </h1>
-              <div className="flex items-center gap-2">
-                <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
-                  {post.status}
-                </Badge>
-                {post.featured && (
-                  <Badge variant="outline" className="text-amber-600">
-                    <Star className="h-3 w-3 mr-1" />
-                    Featured
-                  </Badge>
-                )}
-              </div>
-            </div>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">New Post</h1>
+            <p className="text-sm text-gray-600">Create a new blog post</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSEO(!showSEO)}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              SEO
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSidebar(!showSidebar)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => savePost('draft')}
-              loading={saving}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Draft
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => savePost('published')}
-              loading={saving}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              {post.status === 'published' ? 'Update' : 'Publish'}
-            </Button>
-          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => handleSave('draft')}
+            disabled={saving}
+          >
+            <SaveIcon className="w-4 h-4 mr-2" />
+            {saving ? 'Saving...' : 'Save Draft'}
+          </Button>
+          <Button 
+            onClick={() => handleSave('published')}
+            disabled={saving || !post.title}
+          >
+            <SendIcon className="w-4 h-4 mr-2" />
+            {saving ? 'Publishing...' : 'Publish'}
+          </Button>
         </div>
       </div>
 
-      <div className="flex">
-        {/* Main Editor */}
-        <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
-          <div className="p-6 max-w-4xl mx-auto space-y-6">
-            {/* Title & Slug */}
-            <Card className="glass">
-              <CardContent className="p-6 space-y-4">
-                <div>
-                  <Label htmlFor="title" className="flex items-center gap-2">
-                    <Type className="h-4 w-4" />
-                    Title
-                  </Label>
-                  <Input
-                    id="title"
-                    value={post.title}
-                    onChange={(e) => setPost(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Enter post title..."
-                    className="text-lg font-semibold"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="slug">URL Slug</Label>
-                  <Input
-                    id="slug"
-                    value={post.slug}
-                    onChange={(e) => setPost(prev => ({ ...prev, slug: e.target.value }))}
-                    placeholder="post-url-slug"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Preview: /blog/{post.slug || 'your-post-slug'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Title and Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Post Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Enter post title..."
+                  value={post.title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  className="text-lg"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="slug">URL Slug</Label>
+                <Input
+                  id="slug"
+                  value={post.slug}
+                  onChange={(e) => setPost(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="post-url-slug"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Preview: /blog/{post.slug || 'your-post-slug'}
+                </p>
+              </div>
 
-            {/* Excerpt */}
-            <Card className="glass">
-              <CardContent className="p-6">
+              {/* Category Selection */}
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <select
+                  id="category"
+                  value={post.categoryId}
+                  onChange={(e) => setPost(prev => ({ ...prev, categoryId: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedCategory && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: selectedCategory.color }}
+                    />
+                    <span className="text-xs text-gray-600">{selectedCategory.name}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div>
                 <Label htmlFor="excerpt">Excerpt</Label>
-                <textarea
+                <Textarea
                   id="excerpt"
+                  placeholder="Brief description of your post..."
                   value={post.excerpt}
                   onChange={(e) => setPost(prev => ({ ...prev, excerpt: e.target.value }))}
-                  placeholder="Brief description of your post..."
-                  className="w-full mt-2 p-3 border border-border rounded-lg bg-background resize-none"
                   rows={3}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   {post.excerpt.length}/160 characters
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Rich Text Editor */}
-            <RichTextEditor
-              content={post.content}
-              onChange={(content) => setPost(prev => ({ ...prev, content }))}
-              placeholder="Start writing your amazing post..."
-            />
-
-            {/* SEO Section */}
-            {showSEO && (
-              <Card className="glass border-blue-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Search className="h-5 w-5" />
-                    SEO Optimization
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="seoTitle">SEO Title</Label>
-                    <Input
-                      id="seoTitle"
-                      value={post.seoTitle}
-                      onChange={(e) => setPost(prev => ({ ...prev, seoTitle: e.target.value }))}
-                      placeholder="SEO optimized title..."
-                      maxLength={60}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {post.seoTitle.length}/60 characters
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="seoDescription">Meta Description</Label>
-                    <textarea
-                      id="seoDescription"
-                      value={post.seoDescription}
-                      onChange={(e) => setPost(prev => ({ ...prev, seoDescription: e.target.value }))}
-                      placeholder="SEO meta description..."
-                      className="w-full mt-1 p-2 border border-border rounded-lg bg-background resize-none"
-                      rows={3}
-                      maxLength={160}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {post.seoDescription.length}/160 characters
-                    </p>
-                  </div>
-                  
-                  {/* SEO Preview */}
-                  <div className="p-4 border border-border rounded-lg bg-muted/20">
-                    <h4 className="text-sm font-medium mb-2">Search Preview</h4>
-                    <div className="space-y-1">
-                      <div className="text-blue-600 text-lg hover:underline cursor-pointer">
-                        {post.seoTitle || post.title || 'Your Post Title'}
-                      </div>
-                      <div className="text-green-700 text-sm">
-                        https://yourblog.com/blog/{post.slug || 'your-post-slug'}
-                      </div>
-                      <div className="text-gray-600 text-sm">
-                        {post.seoDescription || post.excerpt || 'Your post description will appear here...'}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {/* Content Editor */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Content Editor</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={editorMode === 'rich' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditorMode('rich')}
+                  >
+                    <Edit3Icon className="w-4 h-4 mr-1" />
+                    Rich
+                  </Button>
+                  <Button
+                    variant={editorMode === 'markdown' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditorMode('markdown')}
+                  >
+                    Markdown
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {editorMode === 'rich' ? (
+                <AdvancedRichTextEditor
+                  value={post.content}
+                  onChange={handleContentChange}
+                  placeholder="Write your post content here... Use the toolbar to format your text."
+                  className="min-h-[400px]"
+                />
+              ) : (
+                <Textarea
+                  placeholder="Write your post content here... You can use Markdown formatting."
+                  value={post.content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  rows={20}
+                  className="font-mono resize-none"
+                  style={{ 
+                    direction: 'ltr', 
+                    textAlign: 'left',
+                    unicodeBidi: 'normal',
+                    writingMode: 'horizontal-tb'
+                  }}
+                  dir="ltr"
+                />
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                {editorMode === 'rich' ? 'Rich text editor with formatting options' : 'Supports Markdown formatting'}. {post.content.replace(/<[^>]*>/g, '').split(' ').filter(word => word.trim()).length} words
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
-        {showSidebar && (
-          <div className="fixed right-0 top-16 bottom-0 w-80 bg-card border-l border-border overflow-y-auto">
-            <div className="p-6 space-y-6">
-              {/* Publication Status */}
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-sm">Publication</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Status</Label>
-                    <select
-                      value={post.status}
-                      onChange={(e) => setPost(prev => ({ ...prev, status: e.target.value as any }))}
-                      className="w-full mt-1 p-2 border border-border rounded-lg bg-background"
+        <div className="space-y-6">
+          {/* Publish Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <SettingsIcon className="w-4 h-4 mr-2" />
+                Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="featured"
+                  checked={post.featured}
+                  onChange={(e) => setPost(prev => ({ ...prev, featured: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="featured">Featured Post</Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* SEO Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>SEO Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="seoTitle">SEO Title</Label>
+                <Input
+                  id="seoTitle"
+                  placeholder="SEO optimized title..."
+                  value={post.seoTitle}
+                  onChange={(e) => setPost(prev => ({ ...prev, seoTitle: e.target.value }))}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="seoDescription">SEO Description</Label>
+                <Textarea
+                  id="seoDescription"
+                  placeholder="SEO meta description..."
+                  value={post.seoDescription}
+                  onChange={(e) => setPost(prev => ({ ...prev, seoDescription: e.target.value }))}
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {post.seoDescription.length}/160 characters
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tags */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TagIcon className="w-4 h-4 mr-2" />
+                Tags
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input
+                placeholder="Enter tags separated by commas..."
+                value={post.tags.join(', ')}
+                onChange={(e) => setPost(prev => ({ 
+                  ...prev, 
+                  tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
+                }))}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Separate tags with commas
+              </p>
+              {post.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {post.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
                     >
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="featured"
-                      checked={post.featured}
-                      onChange={(e) => setPost(prev => ({ ...prev, featured: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <Label htmlFor="featured" className="flex items-center gap-2">
-                      <Star className="h-4 w-4" />
-                      Featured Post
-                    </Label>
-                  </div>
-                  {post.status === 'published' && (
-                    <div className="text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4 inline mr-1" />
-                      Published {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : 'now'}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Tags */}
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    Tags
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newTag}
-                      onChange={(e) => setNewTag(e.target.value)}
-                      placeholder="Add tag..."
-                      onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                    />
-                    <Button size="sm" onClick={addTag}>Add</Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
-                        {tag} ×
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Click tags to remove them
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Cover Image */}
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Image className="h-4 w-4" />
-                    Cover Image
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {post.coverImage ? (
-                    <div className="space-y-2">
-                      <img 
-                        src={post.coverImage} 
-                        alt="Cover" 
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => setPost(prev => ({ ...prev, coverImage: '' }))}
-                      >
-                        Remove Image
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
-                      <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground mb-2">
-                        No cover image selected
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          const url = prompt('Enter image URL:')
-                          if (url) setPost(prev => ({ ...prev, coverImage: url }))
-                        }}
-                      >
-                        Add Cover Image
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Post Statistics */}
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    Statistics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Reading Time</span>
-                    <span className="text-sm font-medium">
-                      {calculateReadingTime(post.content)} min
+                      {tag}
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Word Count</span>
-                    <span className="text-sm font-medium">
-                      {post.content.replace(/<[^>]*>/g, '').split(' ').filter(word => word.length > 0).length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Characters</span>
-                    <span className="text-sm font-medium">
-                      {post.content.replace(/<[^>]*>/g, '').length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tags</span>
-                    <span className="text-sm font-medium">
-                      {post.tags.length}
-                    </span>
-                  </div>
-                  {isEditing && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Views</span>
-                      <span className="text-sm font-medium">
-                        {Math.floor(Math.random() * 1000)} {/* Mock data */}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-sm">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Globe className="h-4 w-4 mr-2" />
-                    Preview in New Tab
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View on Site
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Analytics
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

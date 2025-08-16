@@ -1,0 +1,1220 @@
+=== ESSENTIAL FILES FOR ADMIN-WEB CONNECTION ===
+Generated on: Fri Aug 15 03:16:55 +03 2025
+
+=================================================
+FILE: packages/database/src/schema/index.ts
+=================================================
+// packages/database/src/schema/index.ts
+export * from './users'
+export * from './posts'
+export * from './categories'
+export * from './tags'
+export * from './postCategories'
+export * from './postTags'
+export * from './media'
+
+// Relations
+import { relations } from 'drizzle-orm'
+import { users, posts, categories, tags, postCategories, postTags, media } from '.'
+
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+  media: many(media),
+}))
+
+export const postsRelations = relations(posts, ({ one, many }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+  categories: many(postCategories),
+  tags: many(postTags),
+}))
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  posts: many(postCategories),
+}))
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  posts: many(postTags),
+}))
+
+export const postCategoriesRelations = relations(postCategories, ({ one }) => ({
+  post: one(posts, {
+    fields: [postCategories.postId],
+    references: [posts.id],
+  }),
+  category: one(categories, {
+    fields: [postCategories.categoryId],
+    references: [categories.id],
+  }),
+}))
+
+export const postTagsRelations = relations(postTags, ({ one }) => ({
+  post: one(posts, {
+    fields: [postTags.postId],
+    references: [posts.id],
+  }),
+  tag: one(tags, {
+    fields: [postTags.tagId],
+    references: [tags.id],
+  }),
+}))
+
+export const mediaRelations = relations(media, ({ one }) => ({
+  uploader: one(users, {
+    fields: [media.uploadedBy],
+    references: [users.id],
+  }),
+}))
+=================================================
+FILE: packages/database/src/schema/posts.ts
+=================================================
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import { users } from './users'
+
+export const posts = sqliteTable('posts', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  title: text('title').notNull(),
+  slug: text('slug').notNull().unique(),
+  excerpt: text('excerpt'),
+  content: text('content').notNull(),
+  coverImage: text('cover_image'),
+  status: text('status', { enum: ['draft', 'published', 'archived'] }).notNull().default('draft'),
+  featured: integer('featured', { mode: 'boolean' }).notNull().default(false),
+  viewCount: integer('view_count').notNull().default(0),
+  readingTime: integer('reading_time'),
+  seoTitle: text('seo_title'),
+  seoDescription: text('seo_description'),
+  seoKeywords: text('seo_keywords'),
+  authorId: text('author_id').notNull().references(() => users.id),
+  publishedAt: text('published_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+=================================================
+FILE: packages/database/src/schema/users.ts
+=================================================
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  password: text('password').notNull(),
+  role: text('role', { enum: ['admin', 'editor', 'author'] }).notNull().default('author'),
+  avatar: text('avatar'),
+  bio: text('bio'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+=================================================
+FILE: packages/database/src/schema/categories.ts
+=================================================
+// packages/database/src/schema/categories.ts
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+
+export const categories = sqliteTable('categories', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  color: text('color').default('#3B82F6'),
+  postCount: integer('post_count').notNull().default(0),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
+=================================================
+FILE: packages/database/src/client.ts
+=================================================
+// packages/database/src/client.ts
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
+import * as schema from './schema'
+import { join } from 'path'
+import { existsSync, mkdirSync } from 'fs'
+
+// Ensure data directory exists
+const dataDir = join(process.cwd(), 'data')
+if (!existsSync(dataDir)) {
+  mkdirSync(dataDir, { recursive: true })
+}
+
+// Create SQLite database
+const sqlite = new Database(join(dataDir, 'blog.db'))
+sqlite.exec('PRAGMA foreign_keys = ON')
+
+export const db = drizzle(sqlite, { schema })
+
+// Auto-migrate on startup
+try {
+  migrate(db, { migrationsFolder: join(__dirname, '../migrations') })
+  console.log('✅ Database migrations completed')
+} catch (error) {
+  console.error('❌ Migration failed:', error)
+}
+
+export { sqlite }
+export * from './schema'
+=================================================
+FILE: apps/admin/lib/mock-posts.ts
+=================================================
+interface Post {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  status: 'draft' | 'published' | 'archived'
+  featured: boolean
+  viewCount: number
+  authorId: string
+  authorName: string
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+  seoTitle: string
+  seoDescription: string
+  tags: string[]
+}
+
+let mockPosts: Post[] = [
+  {
+    id: '1',
+    title: 'Welcome to Your Blog Admin',
+    slug: 'welcome-to-blog-admin',
+    excerpt: 'This is your first blog post created through the admin panel. You can edit, delete, or create new posts.',
+    content: `# Welcome to Your Blog Admin
+
+This is your first blog post! You can now:
+
+- ✅ Create new posts
+- ✅ Edit existing posts  
+- ✅ Manage drafts and published content
+- ✅ Add tags and SEO optimization
+- ✅ Feature important posts
+
+Start writing amazing content for your blog!
+
+## Getting Started
+
+1. Click "New Post" to create content
+2. Use the editor to write your posts
+3. Set SEO titles and descriptions
+4. Publish when ready
+
+Happy blogging! 🚀`,
+    status: 'published',
+    featured: true,
+    viewCount: 42,
+    authorId: 'admin-1',
+    authorName: 'Admin User',
+    publishedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    seoTitle: 'Welcome to Your Blog Admin - Get Started',
+    seoDescription: 'Learn how to use your new blog admin panel to create and manage content.',
+    tags: ['welcome', 'admin', 'getting-started']
+  },
+  {
+    id: '2',
+    title: 'How to Write Great Blog Posts',
+    slug: 'how-to-write-great-blog-posts',
+    excerpt: 'Learn the secrets of writing engaging blog posts that your readers will love.',
+    content: `# How to Write Great Blog Posts
+
+Writing great blog posts is an art and a science...
+
+## Key Tips
+
+1. **Start with a compelling headline**
+2. **Write for your audience**
+3. **Use clear structure**
+4. **Add value**
+5. **Include a call-to-action**
+
+More content coming soon!`,
+    status: 'draft',
+    featured: false,
+    viewCount: 15,
+    authorId: 'admin-1',
+    authorName: 'Admin User',
+    publishedAt: null,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date().toISOString(),
+    seoTitle: 'How to Write Great Blog Posts - Writing Guide',
+    seoDescription: 'Master the art of blog writing with these proven tips and strategies.',
+    tags: ['writing', 'blogging', 'tips']
+  }
+]
+
+export function getAllPosts() {
+  return mockPosts.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+}
+
+export function getPostById(id: string) {
+  return mockPosts.find(post => post.id === id)
+}
+
+export function createPost(postData: Omit<Post, 'id' | 'createdAt' | 'updatedAt' | 'viewCount' | 'authorId' | 'authorName'>) {
+  const newPost: Post = {
+    ...postData,
+    id: Date.now().toString(),
+    viewCount: 0,
+    authorId: 'admin-1',
+    authorName: 'Admin User',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+  mockPosts.push(newPost)
+  return newPost
+}
+
+export function updatePost(id: string, updates: Partial<Post>) {
+  const index = mockPosts.findIndex(post => post.id === id)
+  if (index === -1) return null
+  
+  mockPosts[index] = {
+    ...mockPosts[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  }
+  return mockPosts[index]
+}
+
+export function deletePost(id: string) {
+  const index = mockPosts.findIndex(post => post.id === id)
+  if (index === -1) return false
+  
+  mockPosts.splice(index, 1)
+  return true
+}
+
+=================================================
+FILE: apps/admin/app/api/posts/route.ts
+=================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { getAllPosts, createPost } from '@/lib/mock-posts'
+
+export async function GET() {
+ try {
+   const posts = getAllPosts()
+   return NextResponse.json({ posts })
+ } catch (error) {
+   console.error('Failed to fetch posts:', error)
+   return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 })
+ }
+}
+
+export async function POST(request: NextRequest) {
+ try {
+   const postData = await request.json()
+   const newPost = createPost(postData)
+   return NextResponse.json({ post: newPost }, { status: 201 })
+ } catch (error) {
+   console.error('Failed to create post:', error)
+   return NextResponse.json({ error: 'Failed to create post' }, { status: 500 })
+ }
+}
+
+=================================================
+FILE: apps/admin/app/api/auth/login/route.ts
+=================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { mockLogin } from '@/lib/mock-auth'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password } = await request.json()
+
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+    }
+
+    const user = await mockLogin(email, password)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    }
+
+    const response = NextResponse.json({ 
+      success: true, 
+      user 
+    })
+
+    // Set session cookie
+    response.cookies.set('admin-session', user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    })
+
+    return response
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+=================================================
+FILE: apps/web/lib/api.ts
+=================================================
+import fs from 'fs'
+import path from 'path'
+import matter from 'gray-matter'
+import { remark } from 'remark'
+import remarkHtml from 'remark-html'
+import remarkGfm from 'remark-gfm'
+import { BlogPost, Author, Category, Tag, PostFrontmatter } from '@/types/blog'
+import { getReadingTime } from '@/lib/utils'
+
+const postsDirectory = path.join(process.cwd(), 'content/blog')
+
+// Configure remark processor
+const processor = remark()
+  .use(remarkGfm) // GitHub Flavored Markdown
+  .use(remarkHtml, { sanitize: false }) // Convert to HTML
+
+// Yazarlar veritabanı
+const authors: Record<string, Author> = {
+  'seda-tokmak': {
+    name: 'Seda Tokmak',
+    bio: '100leşme yolculuğunun yazarı, Saica Pack Türkiye Genel Müdürü. 25+ yıllık profesyonel deneyimiyle liderlik ve kişisel gelişim konularında paylaşımlarda bulunuyor.',
+    avatar: '/images/authors/seda-tokmak.svg',
+    social: {
+      linkedin: 'https://linkedin.com/in/seda-tokmak',
+      website: 'https://100lesme.com',
+    },
+  },
+}
+
+export async function getPostSlugs(): Promise<string[]> {
+  try {
+    if (!fs.existsSync(postsDirectory)) {
+      return []
+    }
+    
+    const files = fs.readdirSync(postsDirectory)
+    return files
+      .filter(file => file.endsWith('.mdx') || file.endsWith('.md'))
+      .map(file => file.replace(/\.(mdx|md)$/, ''))
+  } catch (error) {
+    console.error('Error reading post slugs:', error)
+    return []
+  }
+}
+
+export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
+  try {
+    const fullPath = path.join(postsDirectory, `${slug}.mdx`)
+    
+    if (!fs.existsSync(fullPath)) {
+      return null
+    }
+
+    const fileContents = fs.readFileSync(fullPath, 'utf8')
+    const { data, content } = matter(fileContents)
+    const frontmatter = data as PostFrontmatter
+
+    // Process markdown content to HTML
+    const processedContent = await processor.process(content)
+    const htmlContent = processedContent.toString()
+
+    const author = authors[frontmatter.author] || authors['seda-tokmak']
+    const readingTime = getReadingTime(content)
+    const excerpt = frontmatter.description || 
+      content.replace(/^#+\s+.*/gm, '').slice(0, 160) + '...'
+
+    const post: BlogPost = {
+      slug,
+      title: frontmatter.title,
+      description: frontmatter.description,
+      content: htmlContent, // Now this is proper HTML
+      date: frontmatter.date,
+      published: frontmatter.published ?? true,
+      featured: frontmatter.featured ?? false,
+      author,
+      category: frontmatter.category,
+      tags: frontmatter.tags || [],
+      coverImage: frontmatter.coverImage,
+      readingTime,
+      excerpt,
+      seo: frontmatter.seo,
+    }
+
+    return post
+  } catch (error) {
+    console.error(`Error reading post ${slug}:`, error)
+    return null
+  }
+}
+
+export async function getAllPosts(): Promise<BlogPost[]> {
+  try {
+    const slugs = await getPostSlugs()
+    const posts = await Promise.all(
+      slugs.map(slug => getPostBySlug(slug))
+    )
+
+    return posts
+      .filter((post): post is BlogPost => post !== null && post.published)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  } catch (error) {
+    console.error('Error getting all posts:', error)
+    return []
+  }
+}
+
+// Keep all your other functions the same...
+export async function getPostsByCategory(categorySlug: string): Promise<BlogPost[]> {
+  try {
+    const allPosts = await getAllPosts()
+    return allPosts.filter(post => 
+      post.category.toLowerCase().replace(/\s+/g, '-') === categorySlug
+    )
+  } catch (error) {
+    console.error(`Error getting posts by category ${categorySlug}:`, error)
+    return []
+  }
+}
+
+export async function getPostsByTag(tagSlug: string): Promise<BlogPost[]> {
+  try {
+    const allPosts = await getAllPosts()
+    return allPosts.filter(post => 
+      post.tags.some(tag => 
+        tag.toLowerCase().replace(/\s+/g, '-') === tagSlug
+      )
+    )
+  } catch (error) {
+    console.error(`Error getting posts by tag ${tagSlug}:`, error)
+    return []
+  }
+}
+
+export async function getFeaturedPosts(): Promise<BlogPost[]> {
+  try {
+    const allPosts = await getAllPosts()
+    return allPosts.filter(post => post.featured)
+  } catch (error) {
+    console.error('Error getting featured posts:', error)
+    return []
+  }
+}
+
+export async function getRelatedPosts(currentSlug: string, limit: number = 3): Promise<BlogPost[]> {
+  try {
+    const currentPost = await getPostBySlug(currentSlug)
+    if (!currentPost) return []
+
+    const allPosts = await getAllPosts()
+    const otherPosts = allPosts.filter(post => post.slug !== currentSlug)
+
+    const scoredPosts = otherPosts.map(post => {
+      let score = 0
+      
+      if (post.category === currentPost.category) {
+        score += 3
+      }
+      
+      const sharedTags = post.tags.filter(tag => 
+        currentPost.tags.includes(tag)
+      )
+      score += sharedTags.length
+
+      return { post, score }
+    })
+
+    return scoredPosts
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ post }) => post)
+  } catch (error) {
+    console.error(`Error getting related posts for ${currentSlug}:`, error)
+    return []
+  }
+}
+
+export async function getAllCategories(): Promise<Category[]> {
+  try {
+    const allPosts = await getAllPosts()
+    const categoryMap = new Map<string, number>()
+
+    allPosts.forEach(post => {
+      const categoryName = post.category
+      categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + 1)
+    })
+
+    return Array.from(categoryMap.entries()).map(([name, postCount]) => ({
+      slug: name.toLowerCase().replace(/\s+/g, '-'),
+      name,
+      description: `${name} ile ilgili yazılar`,
+      postCount,
+    }))
+  } catch (error) {
+    console.error('Error getting all categories:', error)
+    return []
+  }
+}
+
+export async function getAllTags(): Promise<Tag[]> {
+  try {
+    const allPosts = await getAllPosts()
+    const tagMap = new Map<string, number>()
+
+    allPosts.forEach(post => {
+      post.tags.forEach(tag => {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1)
+      })
+    })
+
+    return Array.from(tagMap.entries()).map(([name, postCount]) => ({
+      slug: name.toLowerCase().replace(/\s+/g, '-'),
+      name,
+      postCount,
+    }))
+  } catch (error) {
+    console.error('Error getting all tags:', error)
+    return []
+  }
+}
+
+
+=================================================
+FILE: apps/web/app/blog/page.tsx
+=================================================
+import { getAllPosts } from '@/lib/api'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { formatDate } from '@/lib/utils'
+import Link from 'next/link'
+
+export default async function BlogPage() {
+  const posts = await getAllPosts()
+
+  return (
+    <div className="container py-12">
+      <div className="mx-auto max-w-4xl">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">
+            Tüm Yazılar
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            100leşme yolculuğumdan tüm yazıları keşfedin ve ilham alın.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post) => (
+            <Link key={post.slug} href={`/blog/${post.slug}`}>
+              <Card className="h-full transition-all duration-300 hover:shadow-lg card-hover">
+                {post.coverImage && (
+                  <div className="aspect-video overflow-hidden rounded-t-lg">
+                    <img
+                      src={post.coverImage}
+                      alt={post.title}
+                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  </div>
+                )}
+                <CardHeader>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary">{post.category}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {post.readingTime} dk okuma
+                    </span>
+                  </div>
+                  <CardTitle className="line-clamp-2">{post.title}</CardTitle>
+                  <CardDescription className="line-clamp-3">
+                    {post.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {formatDate(post.date)}
+                    </span>
+                    <span className="text-sm font-medium text-primary">
+                      Devamını oku →
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+        {posts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Henüz yazı yok.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+=================================================
+FILE: apps/web/app/blog/[slug]/page.tsx
+=================================================
+import { getPostBySlug, getAllPosts } from '@/lib/api'
+import { formatDate } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { notFound } from 'next/navigation'
+
+interface PostPageProps {
+  params: {
+    slug: string
+  }
+}
+
+export default async function PostPage({ params }: PostPageProps) {
+  const post = await getPostBySlug(params.slug)
+
+  if (!post) {
+    notFound()
+  }
+
+  return (
+    <article className="container py-12">
+      <div className="mx-auto max-w-4xl">
+        {/* Header */}
+        <header className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge>{post.category}</Badge>
+            <span className="text-sm text-muted-foreground">
+              {post.readingTime} min read
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {formatDate(post.date)}
+            </span>
+          </div>
+          
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">
+            {post.title}
+          </h1>
+          
+          <p className="text-xl text-muted-foreground mb-6">
+            {post.description}
+          </p>
+
+          {post.coverImage && (
+            <div className="aspect-video overflow-hidden rounded-lg mb-8">
+              <img
+                src={post.coverImage}
+                alt={post.title}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
+        </header>
+
+        {/* Content */}
+        <div className="prose prose-lg max-w-none">
+          <div dangerouslySetInnerHTML={{ __html: post.content }} />
+        </div>
+
+        {/* Tags */}
+        {post.tags.length > 0 && (
+          <div className="mt-12 pt-8 border-t">
+            <h3 className="text-lg font-semibold mb-4">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
+  )
+}
+
+export async function generateStaticParams() {
+  const posts = await getAllPosts()
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+
+=================================================
+FILE: apps/web/lib/mdx.ts
+=================================================
+// Basic MDX utility functions without external dependencies
+
+// Types
+export interface BlogPostFrontmatter {
+  title: string
+  excerpt?: string
+  publishedAt: string
+  updatedAt?: string
+  tags: string[]
+  category?: string
+  coverImage?: string
+  featured?: boolean
+  draft?: boolean
+  author: {
+    name: string
+    avatar?: string
+  }
+  seo?: {
+    title?: string
+    description?: string
+    keywords?: string[]
+  }
+}
+
+// Reading time calculation
+export function calculateReadingTime(text: string, wordsPerMinute: number = 200): number {
+  const words = text.trim().split(/\s+/).length
+  const minutes = Math.ceil(words / wordsPerMinute)
+  return minutes
+}
+
+// Word count calculation
+export function calculateWordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length
+}
+
+// Generate heading ID
+function generateHeadingId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+}
+
+// Parse frontmatter from MDX content
+export function parseFrontmatter(content: string): {
+  frontmatter: BlogPostFrontmatter | null
+  content: string
+} {
+  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
+  const match = content.match(frontmatterRegex)
+  
+  if (!match) {
+    return { frontmatter: null, content }
+  }
+  
+  try {
+    const frontmatterString = match[1]
+    const contentWithoutFrontmatter = match[2]
+    
+    // Simple YAML parsing (you might want to use a proper YAML parser)
+    const frontmatter = parseYAML(frontmatterString)
+    
+    return {
+      frontmatter: frontmatter as BlogPostFrontmatter,
+      content: contentWithoutFrontmatter
+    }
+  } catch (error) {
+    console.error('Error parsing frontmatter:', error)
+    return { frontmatter: null, content }
+  }
+}
+
+// Simple YAML parser (basic implementation)
+function parseYAML(yamlString: string): Record<string, any> {
+  const lines = yamlString.split('\n')
+  const result: Record<string, any> = {}
+  
+  let currentKey = ''
+  let isArray = false
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    
+    if (!trimmedLine || trimmedLine.startsWith('#')) {
+      continue
+    }
+    
+    if (trimmedLine.startsWith('- ')) {
+      // Array item
+      if (isArray && currentKey) {
+        if (!Array.isArray(result[currentKey])) {
+          result[currentKey] = []
+        }
+        result[currentKey].push(trimmedLine.substring(2).trim())
+      }
+    } else if (trimmedLine.includes(':')) {
+      // Key-value pair
+      const [key, ...valueParts] = trimmedLine.split(':')
+      const value = valueParts.join(':').trim()
+      
+      currentKey = key.trim()
+      isArray = false
+      
+      if (value === '') {
+        // Possible array or object start
+        isArray = true
+        result[currentKey] = []
+      } else if (value.startsWith('[') && value.endsWith(']')) {
+        // Inline array
+        const arrayContent = value.slice(1, -1)
+        result[currentKey] = arrayContent
+          .split(',')
+          .map(item => item.trim().replace(/^["']|["']$/g, ''))
+      } else {
+        // Regular value
+        result[currentKey] = parseValue(value)
+      }
+    }
+  }
+  
+  return result
+}
+
+// Parse YAML value
+function parseValue(value: string): any {
+  // Remove quotes
+  const unquoted = value.replace(/^["']|["']$/g, '')
+  
+  // Boolean
+  if (unquoted === 'true') return true
+  if (unquoted === 'false') return false
+  
+  // Number
+  if (!isNaN(Number(unquoted))) return Number(unquoted)
+  
+  // Date
+  if (unquoted.match(/^\d{4}-\d{2}-\d{2}/)) {
+    return unquoted
+  }
+  
+  return unquoted
+}
+
+// Extract headings from content (simple version)
+export function extractHeadings(content: string): Array<{ id: string; title: string; level: number }> {
+  const headings: Array<{ id: string; title: string; level: number }> = []
+  const lines = content.split('\n')
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    if (trimmedLine.startsWith('#')) {
+      const match = trimmedLine.match(/^(#{1,6})\s+(.+)$/)
+      if (match) {
+        const level = match[1].length
+        const title = match[2].trim()
+        const id = generateHeadingId(title)
+        headings.push({ id, title, level })
+      }
+    }
+  }
+  
+  return headings
+}
+
+// Generate table of contents from headings
+export function generateTableOfContents(
+  headings: Array<{ id: string; title: string; level: number }>,
+  maxLevel: number = 3
+): Array<{ id: string; title: string; level: number; children?: any[] }> {
+  const filteredHeadings = headings.filter(heading => heading.level <= maxLevel)
+  const toc: any[] = []
+  const stack: any[] = []
+  
+  for (const heading of filteredHeadings) {
+    const item = {
+      id: heading.id,
+      title: heading.title,
+      level: heading.level,
+      children: []
+    }
+    
+    // Find the appropriate parent
+    while (stack.length > 0 && stack[stack.length - 1].level >= heading.level) {
+      stack.pop()
+    }
+    
+    if (stack.length === 0) {
+      toc.push(item)
+    } else {
+      stack[stack.length - 1].children.push(item)
+    }
+    
+    stack.push(item)
+  }
+  
+  return toc
+}
+
+// Validate MDX content
+export function validateMDX(content: string): {
+  isValid: boolean
+  errors: string[]
+} {
+  const errors: string[] = []
+  
+  try {
+    const { frontmatter } = parseFrontmatter(content)
+    
+    if (!frontmatter) {
+      errors.push('Frontmatter is required')
+    } else {
+      if (!frontmatter.title) {
+        errors.push('Title is required in frontmatter')
+      }
+      
+      if (!frontmatter.publishedAt) {
+        errors.push('Published date is required in frontmatter')
+      }
+      
+      if (!frontmatter.tags || frontmatter.tags.length === 0) {
+        errors.push('At least one tag is required in frontmatter')
+      }
+    }
+    
+    // Check for common MDX syntax errors
+    const openBraces = (content.match(/{/g) || []).length
+    const closeBraces = (content.match(/}/g) || []).length
+    
+    if (openBraces !== closeBraces) {
+      errors.push('Mismatched curly braces in MDX content')
+    }
+    
+  } catch (error) {
+    errors.push('Invalid MDX syntax')
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
+
+// Extract excerpt from content
+export function extractExcerpt(
+  content: string,
+  maxLength: number = 200,
+  separator: string = '<!-- excerpt -->'
+): string {
+  // Check for manual excerpt separator
+  if (content.includes(separator)) {
+    const parts = content.split(separator)
+    return parts[0].trim()
+  }
+  
+  // Auto-generate excerpt from first paragraph
+  const paragraphs = content
+    .replace(/^---[\s\S]*?---/, '') // Remove frontmatter
+    .split('\n\n')
+    .filter(p => p.trim() && !p.startsWith('#')) // Remove empty lines and headings
+  
+  if (paragraphs.length > 0) {
+    let excerpt = paragraphs[0].trim()
+    
+    // Remove markdown formatting
+    excerpt = excerpt
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+      .replace(/\*(.*?)\*/g, '$1')     // Italic
+      .replace(/`(.*?)`/g, '$1')       // Code
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
+      .replace(/#{1,6}\s/g, '')        // Headings
+    
+    if (excerpt.length > maxLength) {
+      excerpt = excerpt.substring(0, maxLength).trim() + '...'
+    }
+    
+    return excerpt
+  }
+  
+  return ''
+}
+
+// Optimize images in MDX content
+export function optimizeImages(content: string): string {
+  // Replace ![alt](src) with optimized Image component
+  const imageRegex = /!\[(.*?)\]\((.*?)\)/g
+  
+  return content.replace(imageRegex, (match, alt, src) => {
+    return `<Image src="${src}" alt="${alt}" width={800} height={400} className="rounded-lg" />`
+  })
+}
+
+// Simple markdown to HTML conversion (basic)
+export function markdownToHtml(markdown: string): string {
+  let html = markdown
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Code
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    // Paragraphs
+    .replace(/\n\n/g, '</p><p>')
+    
+  return `<p>${html}</p>`
+}
+=================================================
+FILE: package.json
+=================================================
+
+{
+    "name": "100lesme-blog",
+    "version": "1.0.0",
+    "description": "Modern blog platform with admin-ready architecture",
+    "private": true,
+    "workspaces": [
+      "apps/*",
+      "packages/*"
+    ],
+    "scripts": {
+      "dev:web": "pnpm --filter @100lesme-blog/web dev",
+      "dev:admin": "pnpm --filter @100lesme-blog/admin dev",
+      "build:web": "pnpm --filter @100lesme-blog/web build",
+      "build:admin": "pnpm --filter @100lesme-blog/admin build",
+      "dev": "turbo run dev",
+      "build": "turbo run build",
+      "start": "turbo run start",
+      "lint": "turbo run lint",
+      "test": "turbo run test",
+      "test:watch": "turbo run test:watch",
+      "type-check": "turbo run type-check",
+      "clean": "turbo run clean",
+      "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+      "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+      "prepare": "husky install"
+    },
+    "devDependencies": {
+      "@types/node": "^20.10.5",
+      "eslint": "^8.56.0",
+      "husky": "^8.0.3",
+      "lint-staged": "^15.2.0",
+      "prettier": "^3.1.1",
+      "turbo": "^1.11.2",
+      "typescript": "^5.3.3"
+    },
+    "lint-staged": {
+      "*.{ts,tsx,js,jsx}": [
+        "eslint --fix",
+        "prettier --write"
+      ],
+      "*.{json,md}": [
+        "prettier --write"
+      ]
+    },
+    "engines": {
+      "node": ">=18.17.0",
+      "pnpm": ">=8.0.0"
+    },
+    "packageManager": "pnpm@8.15.1"
+  }
+=================================================
+FILE: apps/admin/package.json
+=================================================
+{
+  "name": "@100lesme-blog/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.4",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "lucide-react": "^0.263.1",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4"
+  }
+}
+
+=================================================
+FILE: apps/web/package.json
+=================================================
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next dist node_modules/.cache",
+    "check-all": "npm run type-check && npm run lint && npm run build"
+  },
+
+
+  "dependencies": {
+    "@mdx-js/loader": "^3.0.0",
+    "@mdx-js/react": "^3.0.0",
+    "@next/mdx": "^14.0.4",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@types/mdx": "^2.0.10",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "framer-motion": "^10.16.16",
+    "gray-matter": "^4.0.3",
+    "lucide-react": "^0.303.0",
+    "next": "14.0.4",
+    "next-themes": "^0.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.48.2",
+    "reading-time": "^1.5.0",
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-html": "^16.0.1",
+    "swr": "^2.2.4",
+    "tailwind-merge": "^2.2.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.10",
+    "@testing-library/jest-dom": "^6.1.6",
+    "@testing-library/react": "^14.1.2",
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "jsdom": "^23.0.1",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}
